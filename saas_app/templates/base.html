@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>SaaS Demo</title>
+</head>
+<body>
+    <h1>🚀 SaaS Demo</h1>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <p style="color:red;">{{ message }}</p>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <a href="{{ url_for('register') }}">Đăng ký</a> |
+    <a href="{{ url_for('login') }}">Đăng nhập</a> |
+    <a href="{{ url_for('logout') }}">Đăng xuất</a>
+</body>
+</html>
