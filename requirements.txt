@@ -3,4 +3,3 @@ flask_sqlalchemy
 flask_bcrypt 
 flask_login 
 gunicorn 
-gunicorn 
