@@ -1,21 +1,212 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <title>SaaS Demo</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Shop Nhỏ - Demo</title>
+  <style>
+    :root{--accent:#2b6cb0;--muted:#666}
+    body{font-family:Inter, system-ui, Arial, sans-serif;margin:0;background:#f6f8fa;color:#111}
+    header{background:linear-gradient(90deg, #fff, #eef6ff);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+    .brand{font-weight:700;color:var(--accent)}
+    main{display:grid;grid-template-columns:320px 1fr;gap:20px;padding:20px}
+    .card{background:#fff;border-radius:10px;padding:16px;box-shadow:0 6px 18px rgba(15,20,30,.04)}
+    form input, form button, .search{width:100%;padding:8px;margin:6px 0;border-radius:6px;border:1px solid #e4e7eb}
+    .products{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+    .product{padding:12px;border-radius:8px;border:1px solid #eef2f6;background:#fff}
+    .product h4{margin:6px 0}
+    .product button{background:var(--accent);color:#fff;border:none;padding:8px 10px;border-radius:6px;cursor:pointer}
+    .small{font-size:13px;color:var(--muted)}
+    .row{display:flex;gap:8px;align-items:center}
+    .right{margin-left:auto}
+    footer{padding:12px;text-align:center;color:var(--muted)}
+    .hidden{display:none}
+    /* responsive */
+    @media(max-width:880px){main{grid-template-columns:1fr;}}
+  </style>
 </head>
 <body>
-    <h1>🚀 SaaS Demo</h1>
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        {% for category, message in messages %}
-          <p style="color:red;">{{ message }}</p>
-        {% endfor %}
-      {% endif %}
-    {% endwith %}
+  <header>
+    <div class="brand">Shop Nhỏ — Demo</div>
+    <div class="row">
+      <div id="userDisplay" class="small">Chưa đăng nhập</div>
+      <button id="btnOpenAuth">Đăng nhập / Đăng ký</button>
+      <button id="btnCart">Giỏ (<span id="cartCount">0</span>)</button>
+    </div>
+  </header>
 
-    <a href="{{ url_for('register') }}">Đăng ký</a> |
-    <a href="{{ url_for('login') }}">Đăng nhập</a> |
-    <a href="{{ url_for('logout') }}">Đăng xuất</a>
+  <main>
+    <aside class="card">
+      <h3>Tìm kiếm</h3>
+      <input id="search" class="search" placeholder="Tìm sản phẩm..." />
+      <h3 style="margin-top:12px">Sản phẩm nổi bật</h3>
+      <div id="featured"></div>
+    </aside>
+
+    <section>
+      <div class="card">
+        <div class="row">
+          <h2>Sản phẩm</h2>
+          <div class="right small">Mẫu demo: mọi dữ liệu lưu trên trình duyệt</div>
+        </div>
+        <div id="products" class="products" style="margin-top:12px"></div>
+      </div>
+
+      <div id="cartPanel" class="card hidden" style="margin-top:12px;">
+        <h3>Giỏ hàng</h3>
+        <div id="cartList"></div>
+        <div class="row" style="margin-top:12px">
+          <strong>Tổng:</strong>
+          <div class="right"><strong id="cartTotal">0₫</strong></div>
+        </div>
+        <div style="margin-top:12px" class="row">
+          <button id="btnCheckout">Thanh toán</button>
+          <button id="btnClearCart">Xóa giỏ</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- AUTH MODAL (simple) -->
+  <div id="authModal" class="card hidden" style="position:fixed;right:18px;top:80px;width:320px;z-index:40">
+    <div class="row">
+      <h3 id="authTitle">Đăng nhập</h3>
+      <button id="closeAuth" class="right">✖</button>
+    </div>
+
+    <div id="loginBox">
+      <form id="loginForm">
+        <input id="loginEmail" placeholder="Email" required />
+        <input id="loginPassword" type="password" placeholder="Mật khẩu" required />
+        <button type="submit">Đăng nhập</button>
+      </form>
+      <div class="small row" style="margin-top:8px">
+        <div>Chưa có tài khoản?</div>
+        <button id="showRegister" class="right">Đăng ký</button>
+      </div>
+    </div>
+
+    <div id="registerBox" class="hidden">
+      <form id="registerForm">
+        <input id="regName" placeholder="Họ và tên" required />
+        <input id="regEmail" placeholder="Email" required />
+        <input id="regPassword" type="password" placeholder="Mật khẩu" required />
+        <button type="submit">Tạo tài khoản</button>
+      </form>
+      <div class="small row" style="margin-top:8px">
+        <div>Đã có tài khoản?</div>
+        <button id="showLogin" class="right">Đăng nhập</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Demo đơn giản — Lưu dữ liệu bằng localStorage. Không dùng server.
+  </footer>
+
+  <script>
+    // Demo product data
+    const PRODUCTS = [
+      {id:1,name:'Cà phê rang xay 500g',price:120000,desc:'Hạt cà phê nguyên chất'},
+      {id:2,name:'Trà Oolong 200g',price:90000,desc:'Trà lên men nhẹ'},
+      {id:3,name:'Bình giữ nhiệt 500ml',price:250000,desc:'Thép không gỉ'},
+      {id:4,name:'Bánh quy bơ 200g',price:45000,desc:'Ngon, giòn'},
+      {id:5,name:'Gift Card 100k',price:100000,desc:'Quà tặng'}
+    ];
+
+    // --- Utilities ---
+    const $ = id=>document.getElementById(id);
+    const money = v => v.toLocaleString('vi-VN') + '₫';
+
+    // --- Simple user storage ---
+    function getUsers(){
+      return JSON.parse(localStorage.getItem('demo_users')||'[]');
+    }
+    function saveUsers(u){ localStorage.setItem('demo_users', JSON.stringify(u)); }
+
+    // store session simple
+    function setSession(user){ localStorage.setItem('demo_session', JSON.stringify(user)); renderUser(); }
+    function getSession(){ return JSON.parse(localStorage.getItem('demo_session')||'null'); }
+    function clearSession(){ localStorage.removeItem('demo_session'); renderUser(); }
+
+    // --- Cart ---
+    function getCart(){ return JSON.parse(localStorage.getItem('demo_cart')||'[]'); }
+    function saveCart(c){ localStorage.setItem('demo_cart', JSON.stringify(c)); renderCart(); }
+
+    // --- Render ---
+    function renderProducts(filter=''){
+      const container = $('products'); container.innerHTML='';
+      const list = PRODUCTS.filter(p=>p.name.toLowerCase().includes(filter.toLowerCase())||p.desc.toLowerCase().includes(filter.toLowerCase()));
+      list.forEach(p=>{
+        const el = document.createElement('div'); el.className='product';
+        el.innerHTML = `<h4>${p.name}</h4><div class="small">${p.desc}</div><div style="margin:8px 0"><strong>${money(p.price)}</strong></div><div class="row"><button data-id="${p.id}">Thêm vào giỏ</button></div>`;
+        container.appendChild(el);
+      });
+    }
+    function renderFeatured(){ $('featured').innerHTML = PRODUCTS.slice(0,3).map(p=>`<div class="small">• ${p.name}</div>`).join(''); }
+
+    function renderUser(){ const s=getSession(); const d=$('userDisplay'); if(s){ d.innerHTML = `Xin chào, ${s.name} <button id="btnLogout">Đăng xuất</button>`; setTimeout(()=>document.getElementById('btnLogout')?.addEventListener('click', ()=>{ clearSession(); }),50);}else{ d.innerHTML='Chưa đăng nhập'; }}
+
+    function renderCart(){ const cart = getCart(); $('cartCount').innerText = cart.reduce((a,b)=>a+b.qty,0);
+      const cartList = $('cartList'); if(!cartList) return;
+      if(cart.length===0){ cartList.innerHTML='<div class="small">Giỏ hàng trống</div>'; $('cartTotal').innerText='0₫'; return; }
+      cartList.innerHTML = cart.map(item=>{ const p = PRODUCTS.find(x=>x.id===item.id); return `<div class="row" style="padding:6px 0;border-bottom:1px solid #f1f5f9"><div><strong>${p.name}</strong><div class="small">${money(p.price)} x ${item.qty}</div></div><div class="right"><button data-id="${item.id}" class="btn-remove">-</button> <button data-id="${item.id}" class="btn-add">+</button></div></div>` }).join('');
+      const total = cart.reduce((s,i)=>{ const p=PRODUCTS.find(x=>x.id===i.id); return s + p.price * i.qty; },0);
+      $('cartTotal').innerText = money(total);
+
+      // attach handlers
+      document.querySelectorAll('.btn-add').forEach(b=>b.addEventListener('click', ()=>{ changeQty(+1, +b.dataset.id); }));
+      document.querySelectorAll('.btn-remove').forEach(b=>b.addEventListener('click', ()=>{ changeQty(-1, +b.dataset.id); }));
+    }
+
+    function changeQty(delta, id){ const cart = getCart(); const idx = cart.findIndex(c=>c.id===id); if(idx===-1 && delta>0){ cart.push({id,qty:1}); } else if(idx!==-1){ cart[idx].qty += delta; if(cart[idx].qty<=0) cart.splice(idx,1); } saveCart(cart);
+    }
+
+    // --- Auth logic ---
+    document.getElementById('btnOpenAuth').addEventListener('click', ()=>{ $('authModal').classList.toggle('hidden'); });
+    $('closeAuth').addEventListener('click', ()=>$('authModal').classList.add('hidden'));
+    $('showRegister').addEventListener('click', ()=>{ $('loginBox').classList.add('hidden'); $('registerBox').classList.remove('hidden'); $('authTitle').innerText='Đăng ký'; });
+    $('showLogin').addEventListener('click', ()=>{ $('registerBox').classList.add('hidden'); $('loginBox').classList.remove('hidden'); $('authTitle').innerText='Đăng nhập'; });
+
+    // register
+    $('registerForm').addEventListener('submit', e=>{
+      e.preventDefault();
+      const name = $('regName').value.trim(); const email = $('regEmail').value.trim().toLowerCase(); const pw = $('regPassword').value;
+      const users = getUsers(); if(users.find(u=>u.email===email)){ alert('Email đã được sử dụng'); return; }
+      // NOTE: This demo stores password plaintext in localStorage — do NOT do this in production.
+      users.push({name,email,password:pw}); saveUsers(users); setSession({name,email}); $('authModal').classList.add('hidden'); alert('Đăng ký thành công!');
+    });
+
+    // login
+    $('loginForm').addEventListener('submit', e=>{
+      e.preventDefault();
+      const email = $('loginEmail').value.trim().toLowerCase(); const pw = $('loginPassword').value;
+      const users = getUsers(); const u = users.find(x=>x.email===email && x.password===pw);
+      if(!u){ alert('Email hoặc mật khẩu không đúng'); return; }
+      setSession({name:u.name,email:u.email}); $('authModal').classList.add('hidden'); alert('Đăng nhập thành công!');
+    });
+
+    // add to cart buttons
+    document.addEventListener('click', e=>{
+      if(e.target.matches('.product button')){ const id=+e.target.dataset.id; changeQty(1,id); }
+    });
+
+    // cart panel toggle
+    $('btnCart').addEventListener('click', ()=>{ $('cartPanel').classList.toggle('hidden'); renderCart(); });
+    $('btnClearCart').addEventListener('click', ()=>{ if(confirm('Xóa toàn bộ giỏ?')){ saveCart([]); } });
+    $('btnCheckout').addEventListener('click', ()=>{
+      const s=getSession(); if(!s){ alert('Vui lòng đăng nhập trước khi thanh toán'); $('authModal').classList.remove('hidden'); return; }
+      alert('Cảm ơn ' + s.name + '! Đơn hàng đã được tạo (demo).'); saveCart([]);
+    });
+
+    // search
+    $('search').addEventListener('input', e=> renderProducts(e.target.value));
+
+    // initial render
+    renderProducts(); renderFeatured(); renderUser(); renderCart();
+
+    // helpful note: preserve some demo users for quick testing
+    (function seedDemo(){ if(getUsers().length===0){ saveUsers([{name:'Người dùng demo',email:'demo@example.com',password:'123456'}]); } })();
+  </script>
 </body>
 </html>
